@@ -30,8 +30,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: {{GITHUB_DEPLOY_ROLE_ARN}}
-          aws-region: {{AWS_REGION}}
+          role-to-assume: arn:aws:iam::061836593621:role/app-app19-github-deploy
+          aws-region: eu-north-1
 
       - name: Promote stub (Phase 1)
         run: |
