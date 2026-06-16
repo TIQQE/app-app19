@@ -1,0 +1,39 @@
+# Phase 2: will bring environment up to desired replica count and deploy image_tag
+
+name: Promote — manual environment promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - tst
+          - prd
+      image_tag:
+        description: Image tag to promote (git SHA)
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.image_tag }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: {{GITHUB_DEPLOY_ROLE_ARN}}
+          aws-region: {{AWS_REGION}}
+
+      - name: Promote stub (Phase 1)
+        run: |
+          echo "Promote to ${{ inputs.environment }} stubbed for Phase 2"
+          exit 0

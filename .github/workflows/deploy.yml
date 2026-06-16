@@ -1,0 +1,72 @@
+name: Deploy — dev environment
+
+on:
+  workflow_run:
+    workflows:
+      - "CI — Build and push image"
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-dev:
+    name: Deploy to ECS dev
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: {{GITHUB_DEPLOY_ROLE_ARN}}
+          aws-region: {{AWS_REGION}}
+
+      - name: Update ECS service with new image
+        env:
+          IMAGE_URI: {{ECR_REPO_URI}}:${{ github.event.workflow_run.head_sha }}
+          CLUSTER: {{ECS_CLUSTER}}
+          SERVICE: {{ECS_SERVICE_DEV}}
+          AWS_REGION: {{AWS_REGION}}
+        run: |
+          TASK_DEF_ARN=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          NEW_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition "$TASK_DEF_ARN" \
+            --region "$AWS_REGION" \
+            --query 'taskDefinition' \
+            --output json | jq --arg IMAGE "$IMAGE_URI" \
+            'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt)
+             | .containerDefinitions[0].image = $IMAGE')
+
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --region "$AWS_REGION" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$SERVICE" \
+            --task-definition "$NEW_TASK_DEF_ARN" \
+            --region "$AWS_REGION"
+
+      - name: Wait for deployment to stabilise
+        env:
+          CLUSTER: {{ECS_CLUSTER}}
+          SERVICE: {{ECS_SERVICE_DEV}}
+          AWS_REGION: {{AWS_REGION}}
+        run: |
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE" \
+            --region "$AWS_REGION"

@@ -1,0 +1,47 @@
+name: CI — Build and push image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and push Docker image to ECR
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.set-output.outputs.image_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: {{GITHUB_DEPLOY_ROLE_ARN}}
+          aws-region: {{AWS_REGION}}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build-push
+        env:
+          IMAGE_URI: {{ECR_REPO_URI}}:${{ github.sha }}
+          IMAGE_LATEST: {{ECR_REPO_URI}}:latest
+        run: |
+          docker build -t "$IMAGE_URI" -t "$IMAGE_LATEST" .
+          docker push "$IMAGE_URI"
+          docker push "$IMAGE_LATEST"
+
+      - name: Set image tag output
+        id: set-output
+        run: echo "image_tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
