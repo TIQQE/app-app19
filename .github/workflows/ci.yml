@@ -25,8 +25,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: {{GITHUB_DEPLOY_ROLE_ARN}}
-          aws-region: {{AWS_REGION}}
+          role-to-assume: arn:aws:iam::061836593621:role/app-app19-github-deploy
+          aws-region: eu-north-1
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -35,8 +35,8 @@ jobs:
       - name: Build and push image
         id: build-push
         env:
-          IMAGE_URI: {{ECR_REPO_URI}}:${{ github.sha }}
-          IMAGE_LATEST: {{ECR_REPO_URI}}:latest
+          IMAGE_URI: 061836593621.dkr.ecr.eu-north-1.amazonaws.com/app-app19:${{ github.sha }}
+          IMAGE_LATEST: 061836593621.dkr.ecr.eu-north-1.amazonaws.com/app-app19:latest
         run: |
           docker build -t "$IMAGE_URI" -t "$IMAGE_LATEST" .
           docker push "$IMAGE_URI"
